@@ -14,9 +14,10 @@ interface Registration {
 interface RegistrationTableProps {
   registrations: Registration[];
   onViewDetails: (id: number) => void;
+  onDelete: (id: number) => void;
 }
 
-const RegistrationTable = ({ registrations, onViewDetails }: RegistrationTableProps) => {
+const RegistrationTable = ({ registrations, onViewDetails, onDelete }: RegistrationTableProps) => {
   const [sortField, setSortField] = useState<keyof Registration | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
@@ -126,12 +127,20 @@ const RegistrationTable = ({ registrations, onViewDetails }: RegistrationTablePr
                 {formatDate(registration.created_at)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm">
-                <button
-                  onClick={() => onViewDetails(registration.id)}
-                  className="text-primary hover:text-primary/80 font-medium"
-                >
-                  View Details
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => onViewDetails(registration.id)}
+                    className="text-primary hover:text-primary/80 font-medium"
+                  >
+                    View Details
+                  </button>
+                  <button
+                    onClick={() => onDelete(registration.id)}
+                    className="text-red-400 hover:text-red-300 font-medium"
+                  >
+                    Delete
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

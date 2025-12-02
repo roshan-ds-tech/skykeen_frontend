@@ -1,8 +1,53 @@
 from rest_framework import serializers
+from django.db import models
+import json
 from .models import EventRegistration
 
 
+class JSONFieldSerializer(serializers.Field):
+    """
+    Custom serializer field for JSONField that handles both JSON strings and lists/dicts.
+    Works with FormData which may send JSON as strings.
+    """
+    def to_internal_value(self, data):
+        import logging
+        logger = logging.getLogger('skykeen_backend')
+        
+        if data is None or data == '':
+            return []
+        if isinstance(data, (list, dict)):
+            return data
+        if isinstance(data, str):
+            # Try to parse as JSON
+            try:
+                parsed = json.loads(data)
+                logger.debug(f"[JSONField] Parsed JSON string: {parsed}")
+                return parsed
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.debug(f"[JSONField] JSON parse error: {e}, returning empty list")
+                return []
+        # For any other type, try to convert to list
+        try:
+            return list(data) if hasattr(data, '__iter__') and not isinstance(data, str) else []
+        except:
+            return []
+
+    def to_representation(self, value):
+        if value is None:
+            return []
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                return []
+        return value
+
+
 class EventRegistrationSerializer(serializers.ModelSerializer):
+    # Override JSONField with custom serializer
+    competitions = JSONFieldSerializer(required=False, allow_null=True)
+    workshops = JSONFieldSerializer(required=False, allow_null=True)
+    
     class Meta:
         model = EventRegistration
         fields = '__all__'

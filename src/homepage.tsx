@@ -2,8 +2,39 @@ import React, { useState } from 'react';
 import { ImageGallery } from '@/components/ui/carousel-circular-image-gallery';
 import { Menu, X } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
 const Homepage: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    studentName: '',
+    studentClass: '',
+    schoolName: '',
+    studentContact: '',
+    studentEmail: '',
+    sibling1Name: '',
+    sibling1School: '',
+    sibling1Class: '',
+    sibling2Name: '',
+    sibling2School: '',
+    sibling2Class: '',
+    parentName: '',
+    parentContact: '',
+    parentSignature: '',
+    competitions: [] as string[],
+    workshops: [] as string[],
+    paymentMode: '',
+    transactionId: '',
+  });
+  
+  const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
+  const [paymentScreenshotPreview, setPaymentScreenshotPreview] = useState<string | null>(null);
+  const [parentSignatureFile, setParentSignatureFile] = useState<File | null>(null);
+  const [parentSignaturePreview, setParentSignaturePreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
@@ -12,6 +43,238 @@ const Homepage: React.FC = () => {
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
     closeMobileMenu();
+  };
+
+  // Handle input changes
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    const type = (e.target as HTMLInputElement).type;
+    const checked = (e.target as HTMLInputElement).checked;
+    
+    if (type === 'checkbox') {
+      const fieldName = name as 'competitions' | 'workshops';
+      if (checked) {
+        setFormData(prev => ({
+          ...prev,
+          [fieldName]: [...prev[fieldName], value]
+        }));
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          [fieldName]: prev[fieldName].filter(item => item !== value)
+        }));
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+
+  // Handle payment screenshot upload
+  const handlePaymentScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file size (10MB max)
+      if (file.size > 10 * 1024 * 1024) {
+        setSubmitMessage({ type: 'error', text: 'Payment screenshot must be less than 10MB' });
+        return;
+      }
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        setSubmitMessage({ type: 'error', text: 'Only JPG, PNG, and WEBP formats are allowed' });
+        return;
+      }
+      setPaymentScreenshot(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPaymentScreenshotPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle parent signature upload (if it's a file input)
+  const handleParentSignatureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file size (10MB max)
+      if (file.size > 10 * 1024 * 1024) {
+        setSubmitMessage({ type: 'error', text: 'Parent signature must be less than 10MB' });
+        return;
+      }
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        setSubmitMessage({ type: 'error', text: 'Only JPG, PNG, and WEBP formats are allowed' });
+        return;
+      }
+      setParentSignatureFile(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setParentSignaturePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitMessage(null);
+
+    try {
+      // Create FormData for file upload
+      const formDataToSend = new FormData();
+      
+      // Student details
+      formDataToSend.append('student_name', formData.studentName);
+      formDataToSend.append('student_class', formData.studentClass);
+      formDataToSend.append('school_name', formData.schoolName);
+      formDataToSend.append('student_contact', formData.studentContact);
+      formDataToSend.append('student_email', formData.studentEmail);
+      
+      // Sibling details
+      if (formData.sibling1Name) formDataToSend.append('sibling1_name', formData.sibling1Name);
+      if (formData.sibling1School) formDataToSend.append('sibling1_school', formData.sibling1School);
+      if (formData.sibling1Class) formDataToSend.append('sibling1_class', formData.sibling1Class);
+      if (formData.sibling2Name) formDataToSend.append('sibling2_name', formData.sibling2Name);
+      if (formData.sibling2School) formDataToSend.append('sibling2_school', formData.sibling2School);
+      if (formData.sibling2Class) formDataToSend.append('sibling2_class', formData.sibling2Class);
+      
+      // Parent details
+      formDataToSend.append('parent_name', formData.parentName);
+      formDataToSend.append('parent_contact', formData.parentContact);
+      if (parentSignatureFile) {
+        formDataToSend.append('parent_signature', parentSignatureFile);
+      } else if (formData.parentSignature) {
+        // If it's a text signature, we might need to handle it differently
+        // For now, we'll skip it if no file is provided
+      }
+      
+      // Competitions and workshops (as JSON arrays)
+      const competitionsJson = JSON.stringify(formData.competitions);
+      const workshopsJson = JSON.stringify(formData.workshops);
+      console.log('Sending competitions:', competitionsJson, 'type:', typeof competitionsJson);
+      console.log('Sending workshops:', workshopsJson, 'type:', typeof workshopsJson);
+      
+      formDataToSend.append('competitions', competitionsJson);
+      formDataToSend.append('workshops', workshopsJson);
+      
+      // Payment details
+      formDataToSend.append('payment_mode', formData.paymentMode || 'Online');
+      formDataToSend.append('transaction_id', formData.transactionId);
+      
+      if (!paymentScreenshot) {
+        setSubmitMessage({ type: 'error', text: 'Please upload a payment screenshot' });
+        setIsSubmitting(false);
+        return;
+      }
+      formDataToSend.append('payment_screenshot', paymentScreenshot);
+
+      // Log all FormData entries for debugging
+      console.log('FormData entries:');
+      for (const [key, value] of formDataToSend.entries()) {
+        if (value instanceof File) {
+          console.log(`${key}: [File] ${value.name}, size: ${value.size}`);
+        } else {
+          console.log(`${key}: ${value} (type: ${typeof value})`);
+        }
+      }
+
+      // Submit to API
+      const response = await fetch(`${API_BASE_URL}/api/registrations/`, {
+        method: 'POST',
+        body: formDataToSend,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Backend error response:', errorData);
+        
+        // Handle Django REST Framework validation errors
+        if (errorData.detail) {
+          throw new Error(errorData.detail);
+        } else if (errorData.error) {
+          throw new Error(errorData.error);
+        } else if (typeof errorData === 'object') {
+          // Collect all validation errors
+          const errors = [];
+          for (const [field, messages] of Object.entries(errorData)) {
+            if (Array.isArray(messages)) {
+              errors.push(`${field}: ${messages.join(', ')}`);
+            } else if (typeof messages === 'string') {
+              errors.push(`${field}: ${messages}`);
+            } else if (Array.isArray(messages) && messages.length > 0) {
+              errors.push(`${field}: ${messages[0]}`);
+            }
+          }
+          throw new Error(errors.length > 0 ? errors.join('; ') : 'Registration failed. Please check all fields.');
+        } else {
+          throw new Error('Registration failed. Please try again.');
+        }
+      }
+
+      await response.json();
+      setSubmitMessage({ type: 'success', text: 'Registration submitted successfully! We will contact you soon.' });
+      
+      // Scroll to success message after a brief delay to ensure it's rendered
+      setTimeout(() => {
+        const successElement = document.getElementById('registration-success-message');
+        if (successElement) {
+          successElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+      
+      // Reset form
+      setFormData({
+        studentName: '',
+        studentClass: '',
+        schoolName: '',
+        studentContact: '',
+        studentEmail: '',
+        sibling1Name: '',
+        sibling1School: '',
+        sibling1Class: '',
+        sibling2Name: '',
+        sibling2School: '',
+        sibling2Class: '',
+        parentName: '',
+        parentContact: '',
+        parentSignature: '',
+        competitions: [],
+        workshops: [],
+        paymentMode: '',
+        transactionId: '',
+      });
+      setPaymentScreenshot(null);
+      setPaymentScreenshotPreview(null);
+      setParentSignatureFile(null);
+      setParentSignaturePreview(null);
+      
+      // Reset file inputs
+      const fileInputs = document.querySelectorAll('input[type="file"]');
+      fileInputs.forEach(input => (input as HTMLInputElement).value = '');
+      
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      setSubmitMessage({ type: 'error', text: error.message || 'Failed to submit registration. Please try again.' });
+      
+      // Scroll to error message after a brief delay to ensure it's rendered
+      setTimeout(() => {
+        const errorElement = document.getElementById('registration-error-message');
+        if (errorElement) {
+          errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -224,7 +487,21 @@ const Homepage: React.FC = () => {
               </div>
 
               <div className="max-w-4xl mx-auto">
-                <form className="space-y-8 bg-[#342d18]/50 p-8 sm:p-10 rounded-xl border border-[#685a31]/50 shadow-xl">
+                <form onSubmit={handleSubmit} className="space-y-8 bg-[#342d18]/50 p-8 sm:p-10 rounded-xl border border-[#685a31]/50 shadow-xl">
+                  
+                  {/* Success/Error Message */}
+                  {submitMessage && (
+                    <div 
+                      id={submitMessage.type === 'success' ? 'registration-success-message' : 'registration-error-message'}
+                      className={`p-4 rounded-lg ${
+                        submitMessage.type === 'success' 
+                          ? 'bg-green-500/20 border border-green-500 text-green-200' 
+                          : 'bg-red-500/20 border border-red-500 text-red-200'
+                      }`}
+                    >
+                      {submitMessage.text}
+                    </div>
+                  )}
                   
                   {/* Student Details Section */}
                   <div className="border-b border-[#685a31]/50 pb-6">
@@ -235,23 +512,23 @@ const Homepage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="student-name">Name <span className="text-primary">*</span></label>
-                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="student-name" name="student-name" type="text" placeholder="Enter student name" required/>
+                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="student-name" name="studentName" type="text" placeholder="Enter student name" value={formData.studentName} onChange={handleInputChange} required/>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="class-grade">Class / Grade <span className="text-primary">*</span></label>
-                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="class-grade" name="class-grade" type="text" placeholder="e.g., 10th Grade" required/>
+                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="class-grade" name="studentClass" type="text" placeholder="e.g., 10th Grade" value={formData.studentClass} onChange={handleInputChange} required/>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="school-name">School Name <span className="text-primary">*</span></label>
-                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="school-name" name="school-name" type="text" placeholder="Enter school name" required/>
+                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="school-name" name="schoolName" type="text" placeholder="Enter school name" value={formData.schoolName} onChange={handleInputChange} required/>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="contact-number">Contact Number <span className="text-primary">*</span></label>
-                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="contact-number" name="contact-number" type="tel" placeholder="Enter contact number" required/>
+                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="contact-number" name="studentContact" type="tel" placeholder="Enter contact number" value={formData.studentContact} onChange={handleInputChange} required/>
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="email-id">Email ID <span className="text-primary">*</span></label>
-                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="email-id" name="email-id" type="email" placeholder="Enter email address" required/>
+                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="email-id" name="studentEmail" type="email" placeholder="Enter email address" value={formData.studentEmail} onChange={handleInputChange} required/>
                       </div>
                     </div>
                   </div>
@@ -270,15 +547,15 @@ const Homepage: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="sibling1-name">Name</label>
-                            <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2 px-3 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm" id="sibling1-name" name="sibling1-name" type="text" placeholder="Sibling 1 name"/>
+                            <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2 px-3 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm" id="sibling1-name" name="sibling1Name" type="text" placeholder="Sibling 1 name" value={formData.sibling1Name} onChange={handleInputChange}/>
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="sibling1-school">School/College</label>
-                            <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2 px-3 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm" id="sibling1-school" name="sibling1-school" type="text" placeholder="School/College name"/>
+                            <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2 px-3 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm" id="sibling1-school" name="sibling1School" type="text" placeholder="School/College name" value={formData.sibling1School} onChange={handleInputChange}/>
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="sibling1-class">Class/Year</label>
-                            <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2 px-3 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm" id="sibling1-class" name="sibling1-class" type="text" placeholder="Class/Year"/>
+                            <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2 px-3 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm" id="sibling1-class" name="sibling1Class" type="text" placeholder="Class/Year" value={formData.sibling1Class} onChange={handleInputChange}/>
                           </div>
                         </div>
                       </div>
@@ -288,15 +565,15 @@ const Homepage: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="sibling2-name">Name</label>
-                            <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2 px-3 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm" id="sibling2-name" name="sibling2-name" type="text" placeholder="Sibling 2 name"/>
+                            <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2 px-3 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm" id="sibling2-name" name="sibling2Name" type="text" placeholder="Sibling 2 name" value={formData.sibling2Name} onChange={handleInputChange}/>
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="sibling2-school">School/College</label>
-                            <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2 px-3 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm" id="sibling2-school" name="sibling2-school" type="text" placeholder="School/College name"/>
+                            <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2 px-3 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm" id="sibling2-school" name="sibling2School" type="text" placeholder="School/College name" value={formData.sibling2School} onChange={handleInputChange}/>
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="sibling2-class">Class/Year</label>
-                            <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2 px-3 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm" id="sibling2-class" name="sibling2-class" type="text" placeholder="Class/Year"/>
+                            <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2 px-3 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm" id="sibling2-class" name="sibling2Class" type="text" placeholder="Class/Year" value={formData.sibling2Class} onChange={handleInputChange}/>
                           </div>
                         </div>
                       </div>
@@ -312,15 +589,20 @@ const Homepage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="parent-name">Parent/Guardian Name <span className="text-primary">*</span></label>
-                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="parent-name" name="parent-name" type="text" placeholder="Enter parent/guardian name" required/>
+                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="parent-name" name="parentName" type="text" placeholder="Enter parent/guardian name" value={formData.parentName} onChange={handleInputChange} required/>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="parent-contact">Contact Number <span className="text-primary">*</span></label>
-                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="parent-contact" name="parent-contact" type="tel" placeholder="Enter contact number" required/>
+                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="parent-contact" name="parentContact" type="tel" placeholder="Enter contact number" value={formData.parentContact} onChange={handleInputChange} required/>
                       </div>
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="parent-signature">Signature of Parent/Guardian <span className="text-primary">*</span></label>
-                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="parent-signature" name="parent-signature" type="text" placeholder="Type your full name as signature" required/>
+                        <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="parent-signature">Signature of Parent/Guardian (Upload Image) <span className="text-primary">*</span></label>
+                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="parent-signature" name="parentSignature" type="file" accept="image/jpeg,image/png,image/webp" onChange={handleParentSignatureChange}/>
+                        {parentSignaturePreview && (
+                          <div className="mt-2">
+                            <img src={parentSignaturePreview} alt="Parent signature preview" className="max-w-xs max-h-32 border border-[#685a31] rounded"/>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -335,7 +617,7 @@ const Homepage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {['Academic Quiz', 'Science Innovators Challenge', 'Chess Tournament', 'Public Speaking Contest', 'Art & Creativity Challenge'].map((competition, index) => (
                         <div key={index} className="flex items-center p-3 bg-[#221e10]/40 rounded-lg border border-[#685a31]/30 hover:border-primary/50 transition-colors">
-                          <input className="h-5 w-5 rounded border border-[#685a31] bg-[#221e10]/80 text-primary focus:ring-primary cursor-pointer" id={`competition-${index}`} name="competitions" type="checkbox" value={competition}/>
+                          <input className="h-5 w-5 rounded border border-[#685a31] bg-[#221e10]/80 text-primary focus:ring-primary cursor-pointer" id={`competition-${index}`} name="competitions" type="checkbox" value={competition} checked={formData.competitions.includes(competition)} onChange={handleInputChange}/>
                           <label className="ml-3 text-sm font-medium text-white/90 cursor-pointer" htmlFor={`competition-${index}`}>{competition}</label>
                         </div>
                       ))}
@@ -352,7 +634,7 @@ const Homepage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {['Artificial Intelligence for Beginners', 'Financial Literacy & Money Management', 'Entrepreneurship Foundation', 'Business Development & Leadership'].map((workshop, index) => (
                         <div key={index} className="flex items-center p-3 bg-[#221e10]/40 rounded-lg border border-[#685a31]/30 hover:border-primary/50 transition-colors">
-                          <input className="h-5 w-5 rounded border border-[#685a31] bg-[#221e10]/80 text-primary focus:ring-primary cursor-pointer" id={`workshop-${index}`} name="workshops" type="checkbox" value={workshop}/>
+                          <input className="h-5 w-5 rounded border border-[#685a31] bg-[#221e10]/80 text-primary focus:ring-primary cursor-pointer" id={`workshop-${index}`} name="workshops" type="checkbox" value={workshop} checked={formData.workshops.includes(workshop)} onChange={handleInputChange}/>
                           <label className="ml-3 text-sm font-medium text-white/90 cursor-pointer" htmlFor={`workshop-${index}`}>{workshop}</label>
                         </div>
                       ))}
@@ -382,28 +664,64 @@ const Homepage: React.FC = () => {
                         <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="payment-screenshot">Upload Payment Screenshot <span className="text-primary">*</span></label>
                         <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed border-[#685a31] rounded-lg hover:border-primary transition-colors">
                           <div className="space-y-1 text-center">
-                            <span className="material-symbols-outlined text-4xl text-white/40">cloud_upload</span>
-                            <div className="flex text-sm text-white/60">
-                              <label htmlFor="payment-screenshot" className="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary/80">
-                                <span>Upload a file</span>
-                                <input id="payment-screenshot" name="payment-screenshot" type="file" className="sr-only" accept="image/*" required/>
-                              </label>
-                              <p className="pl-1">or drag and drop</p>
-                            </div>
-                            <p className="text-xs text-white/50">PNG, JPG, GIF up to 10MB</p>
+                            {paymentScreenshotPreview ? (
+                              <div>
+                                <img src={paymentScreenshotPreview} alt="Payment screenshot preview" className="max-w-full max-h-48 mx-auto border border-[#685a31] rounded mb-2"/>
+                                <p className="text-xs text-white/70">{paymentScreenshot?.name}</p>
+                                <button type="button" onClick={() => { setPaymentScreenshot(null); setPaymentScreenshotPreview(null); }} className="text-xs text-primary hover:text-primary/80 mt-2">Remove</button>
+                              </div>
+                            ) : (
+                              <>
+                                <span className="material-symbols-outlined text-4xl text-white/40">cloud_upload</span>
+                                <div className="flex text-sm text-white/60">
+                                  <label htmlFor="payment-screenshot" className="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary/80">
+                                    <span>Upload a file</span>
+                                    <input id="payment-screenshot" name="payment-screenshot" type="file" className="sr-only" accept="image/jpeg,image/png,image/webp" onChange={handlePaymentScreenshotChange} required/>
+                                  </label>
+                                  <p className="pl-1">or drag and drop</p>
+                                </div>
+                                <p className="text-xs text-white/50">PNG, JPG, WEBP up to 10MB</p>
+                              </>
+                            )}
                           </div>
                         </div>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="payment-mode">Payment Mode <span className="text-primary">*</span></label>
+                        <select className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="payment-mode" name="paymentMode" value={formData.paymentMode} onChange={handleInputChange} required>
+                          <option value="">Select payment mode</option>
+                          <option value="UPI">UPI</option>
+                          <option value="Bank Transfer">Bank Transfer</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="transaction-id">Transaction ID <span className="text-primary">*</span></label>
+                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="transaction-id" name="transactionId" type="text" placeholder="Enter transaction ID" value={formData.transactionId} onChange={handleInputChange} required/>
                       </div>
                     </div>
                   </div>
 
-                 
+                
 
                   {/* Submit Button */}
                   <div className="pt-4">
-                    <button className="w-full flex justify-center items-center gap-2 py-4 px-6 border border-transparent rounded-lg shadow-lg text-base font-bold text-background-dark bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary focus:ring-offset-background-dark transition-all transform hover:scale-[1.02]" type="submit">
-                      <span className="material-symbols-outlined">check_circle</span>
-                      Submit Registration
+                    <button 
+                      className="w-full flex justify-center items-center gap-2 py-4 px-6 border border-transparent rounded-lg shadow-lg text-base font-bold text-background-dark bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary focus:ring-offset-background-dark transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed" 
+                      type="submit"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <span className="material-symbols-outlined animate-spin">sync</span>
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined">check_circle</span>
+                          Submit Registration
+                        </>
+                      )}
                     </button>
                     <p className="text-white/60 text-xs text-center mt-3">By submitting this form, you agree to the terms and conditions</p>
                   </div>
@@ -467,4 +785,5 @@ const Homepage: React.FC = () => {
 };
 
 export default Homepage;
+
 

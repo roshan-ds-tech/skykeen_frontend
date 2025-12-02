@@ -3,6 +3,8 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth import authenticate, login, logout
+from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
+from django.utils.decorators import method_decorator
 from .models import EventRegistration
 from .serializers import EventRegistrationSerializer, PaymentVerificationSerializer
 
@@ -29,10 +31,69 @@ class RegistrationViewSet(viewsets.ModelViewSet):
         Create a new registration.
         Accepts multipart/form-data.
         """
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
+        import json
+        import sys
+        
+        # Force immediate output
+        sys.stdout.write("\n" + "="*60 + "\n")
+        sys.stdout.write("[REGISTRATION] POST /api/registrations/ - Received data keys: " + str(list(request.data.keys())) + "\n")
+        sys.stdout.flush()
+        
+        # Parse JSON strings for competitions and workshops when sent as FormData
+        data = request.data.copy()
+        
+        # Handle competitions - FormData might send as string or list
+        if 'competitions' in data:
+            competitions_value = data['competitions']
+            sys.stdout.write(f"[REGISTRATION] competitions type: {type(competitions_value)}, value: {competitions_value}\n")
+            sys.stdout.flush()
+            
+            if isinstance(competitions_value, str):
+                try:
+                    data['competitions'] = json.loads(competitions_value)
+                except (json.JSONDecodeError, TypeError):
+                    data['competitions'] = []
+            elif isinstance(competitions_value, list):
+                data['competitions'] = competitions_value
+            else:
+                data['competitions'] = []
+        else:
+            data['competitions'] = []
+        
+        # Handle workshops
+        if 'workshops' in data:
+            workshops_value = data['workshops']
+            sys.stdout.write(f"[REGISTRATION] workshops type: {type(workshops_value)}, value: {workshops_value}\n")
+            sys.stdout.flush()
+            
+            if isinstance(workshops_value, str):
+                try:
+                    data['workshops'] = json.loads(workshops_value)
+                except (json.JSONDecodeError, TypeError):
+                    data['workshops'] = []
+            elif isinstance(workshops_value, list):
+                data['workshops'] = workshops_value
+            else:
+                data['workshops'] = []
+        else:
+            data['workshops'] = []
+        
+        sys.stdout.write(f"[REGISTRATION] Final competitions: {data.get('competitions')}, workshops: {data.get('workshops')}\n")
+        sys.stdout.flush()
+        
+        serializer = self.get_serializer(data=data, context={'request': request})
+        
+        if not serializer.is_valid():
+            sys.stdout.write(f"[REGISTRATION] VALIDATION ERRORS: {serializer.errors}\n")
+            sys.stdout.flush()
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError(serializer.errors)
+        
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
+        sys.stdout.write(f"[REGISTRATION] SUCCESS - Registration created: ID {serializer.data.get('id')}\n")
+        sys.stdout.write("="*60 + "\n")
+        sys.stdout.flush()
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def list(self, request, *args, **kwargs):
@@ -81,9 +142,11 @@ class RegistrationViewSet(viewsets.ModelViewSet):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@csrf_exempt
 def admin_login(request):
     """
     Admin login endpoint.
+    Supports both email and username for authentication.
     """
     email = request.data.get('email')
     password = request.data.get('password')
@@ -94,12 +157,34 @@ def admin_login(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    user = authenticate(request, username=email, password=password)
+    # Try to find user by email first, then by username
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    
+    username = None
+    try:
+        # First try to find user by email
+        user_obj = User.objects.get(email=email)
+        username = user_obj.username
+    except User.DoesNotExist:
+        # If not found by email, try username
+        try:
+            user_obj = User.objects.get(username=email)
+            username = user_obj.username
+        except User.DoesNotExist:
+            username = email  # Fallback: try email as username
+    
+    # Authenticate with the username
+    user = authenticate(request, username=username, password=password)
     
     if user is not None:
         if user.is_staff or user.is_superuser:
             login(request, user)
-            return Response({
+            # Explicitly save the session to ensure cookie is set
+            request.session.save()
+            
+            # Create response
+            response = Response({
                 'success': True,
                 'message': 'Login successful',
                 'user': {
@@ -108,6 +193,20 @@ def admin_login(request):
                     'username': user.username
                 }
             })
+            
+            # Ensure session cookie is set with proper attributes
+            # The session middleware should handle this, but we'll ensure it's set
+            if request.session.session_key:
+                response.set_cookie(
+                    'sessionid',
+                    request.session.session_key,
+                    max_age=86400,  # 24 hours
+                    httponly=True,
+                    samesite='Lax',  # Use Lax for local development
+                    secure=False  # False for HTTP localhost
+                )
+            
+            return response
         else:
             return Response(
                 {'error': 'User does not have admin privileges'},
@@ -132,11 +231,21 @@ def admin_logout(request):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@ensure_csrf_cookie
 def admin_check(request):
     """
     Check if admin is logged in.
     Returns authenticated status without requiring authentication.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Debug logging
+    logger.info(f"Admin check - User authenticated: {request.user.is_authenticated}")
+    logger.info(f"Admin check - User: {request.user}")
+    logger.info(f"Admin check - Session key: {request.session.session_key}")
+    logger.info(f"Admin check - Cookies: {request.COOKIES}")
+    
     if request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser):
         return Response({
             'authenticated': True,
@@ -150,3 +259,30 @@ def admin_check(request):
         return Response({
             'authenticated': False
         })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@ensure_csrf_cookie
+def get_csrf_token(request):
+    """
+    Get CSRF token for the frontend.
+    This endpoint ensures the CSRF cookie is set.
+    """
+    from django.middleware.csrf import get_token
+    csrf_token = get_token(request)
+    return Response({'csrfToken': csrf_token})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def test_logging(request):
+    """
+    Test endpoint to verify logging is working.
+    """
+    import sys
+    sys.stdout.write("\n" + "="*60 + "\n")
+    sys.stdout.write("TEST LOGGING ENDPOINT CALLED\n")
+    sys.stdout.write("="*60 + "\n")
+    sys.stdout.flush()
+    return Response({'message': 'Logging test successful - check server terminal'})

@@ -56,6 +56,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'skykeen_backend.middleware.RequestLoggingMiddleware',
 ]
 
 ROOT_URLCONF = 'skykeen_backend.urls'
@@ -170,9 +171,13 @@ REST_FRAMEWORK = {
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite dev server (main frontend)
-    "http://localhost:5174",  # Admin dashboard (if different port)
+    "http://localhost:5174",  # Admin dashboard
+    "http://localhost:5175",  # Admin dashboard (alternative port)
+    "http://localhost:5176",  # Admin dashboard (current port)
     "http://127.0.0.1:5173",
     "http://127.0.0.1:5174",
+    "http://127.0.0.1:5175",
+    "http://127.0.0.1:5176",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -190,21 +195,36 @@ CORS_ALLOW_HEADERS = [
 ]
 
 # Session configuration for React admin dashboard
-SESSION_COOKIE_SAMESITE = "None"
+# For local development, use Lax. For production with HTTPS, use None with Secure=True
+SESSION_COOKIE_SAMESITE = "Lax" if not os.getenv('SESSION_COOKIE_SECURE', 'False') == 'True' else "None"
 SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'False') == 'True'  # True for production, False for local
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_AGE = 86400  # 24 hours
+SESSION_COOKIE_DOMAIN = None  # Allow cookies for localhost
+SESSION_SAVE_EVERY_REQUEST = True  # Save session on every request to keep it alive
 
 # CSRF configuration
-CSRF_COOKIE_SAMESITE = "None"
+# For local development, use Lax. For production with HTTPS, use None with Secure=True
+CSRF_COOKIE_SAMESITE = "Lax" if not os.getenv('CSRF_COOKIE_SECURE', 'False') == 'True' else "None"
 CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'False') == 'True'  # True for production, False for local
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:5174",
+    "http://localhost:5175",
+    "http://localhost:5176",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:5174",
+    "http://127.0.0.1:5175",
+    "http://127.0.0.1:5176",
 ]
 
 # File upload settings
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
+
+# Logging configuration - Minimal to not interfere with Django's default logging
+# Django's runserver will show request logs by default
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+}

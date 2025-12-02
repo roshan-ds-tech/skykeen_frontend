@@ -15,11 +15,21 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await login(email, password);
-      navigate('/dashboard');
+      const response = await login(email, password);
+      console.log('Login response:', response);
+      if (response.success) {
+        // Wait a moment for session cookie to be set, then redirect
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 200);
+      } else {
+        setError(response.error || 'Login failed. Please try again.');
+        setLoading(false);
+      }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed. Please try again.');
-    } finally {
+      console.error('Login error:', err);
+      const errorMessage = err.response?.data?.error || err.message || 'Login failed. Please try again.';
+      setError(errorMessage);
       setLoading(false);
     }
   };

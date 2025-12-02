@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getRegistrations, getRegistration, logout, checkAuth } from '../services/api';
+import { getRegistrations, getRegistration, logout, checkAuth, deleteRegistration } from '../services/api';
 import RegistrationTable from '../components/RegistrationTable';
 import DetailsModal from '../components/DetailsModal';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -65,6 +65,21 @@ const Dashboard = () => {
     fetchRegistrations(); // Refresh list after modal closes
   };
 
+  const handleDelete = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this registration? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await deleteRegistration(id);
+      setError('');
+      // Refresh the list after deletion
+      fetchRegistrations();
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.response?.data?.detail || 'Failed to delete registration');
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -113,6 +128,7 @@ const Dashboard = () => {
             <RegistrationTable
               registrations={registrations}
               onViewDetails={handleViewDetails}
+              onDelete={handleDelete}
             />
           </div>
         )}
