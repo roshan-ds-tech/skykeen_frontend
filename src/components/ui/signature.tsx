@@ -19,11 +19,7 @@ export function ThumbnailsCarousel() {
   );
 
   return (
-    <Carousel.Root
-      defaultPage={0}
-      slideCount={images.length}
-      className="mx-auto max-w-3xl p-2"
-    >
+    <Carousel.Root className="mx-auto max-w-3xl p-2">
       <Carousel.Control>
         <Carousel.Viewport>
           <Carousel.ItemGroup className="mb-4 overflow-hidden rounded-2xl border border-white/10 bg-black/30 shadow-[0_24px_80px_rgba(0,0,0,0.7)]">
