@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ImageGallery } from '@/components/ui/carousel-circular-image-gallery';
 import { Menu, X } from 'lucide-react';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.skykeenentreprise.com';
 
 const Homepage: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
