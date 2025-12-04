@@ -618,15 +618,7 @@ const Homepage: React.FC = () => {
                         <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="parent-contact">Contact Number <span className="text-primary">*</span></label>
                         <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="parent-contact" name="parentContact" type="tel" placeholder="Enter contact number" value={formData.parentContact} onChange={handleInputChange} required/>
                       </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="parent-signature">Signature of Parent/Guardian (Upload Image) <span className="text-primary">*</span></label>
-                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="parent-signature" name="parentSignature" type="file" accept="image/jpeg,image/png,image/webp" onChange={handleParentSignatureChange}/>
-                        {parentSignaturePreview && (
-                          <div className="mt-2">
-                            <img src={parentSignaturePreview} alt="Parent signature preview" className="max-w-xs max-h-32 border border-[#685a31] rounded"/>
-                          </div>
-                        )}
-                      </div>
+                      
                     </div>
                   </div>
 
