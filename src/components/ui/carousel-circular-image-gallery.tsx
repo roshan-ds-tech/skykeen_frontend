@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface ImageData {
@@ -41,20 +41,59 @@ const images: ImageData[] = [
 
 export function ImageGallery() {
   const [activeIndex, setActiveIndex] = useState(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autoplayDelay = 5000; // 5 seconds
 
-  // Simple autoplay
-  useEffect(() => {
-    const id = window.setInterval(() => {
+  // Function to start autoplay
+  const startAutoplay = () => {
+    // Clear any existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    
+    // Start new interval
+    intervalRef.current = setInterval(() => {
       setActiveIndex((prev) => (prev + 1) % images.length);
-    }, 5000);
+    }, autoplayDelay);
+  };
 
-    return () => window.clearInterval(id);
+  // Function to stop autoplay
+  const stopAutoplay = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    // Also clear any pending timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
+
+  // Initialize autoplay on mount
+  useEffect(() => {
+    startAutoplay();
+    
+    return () => {
+      stopAutoplay();
+    };
   }, []);
 
   const goTo = (index: number) => {
+    // Stop autoplay when user manually navigates
+    stopAutoplay();
+    
+    // Navigate to the selected image
     if (index < 0) setActiveIndex(images.length - 1);
     else if (index >= images.length) setActiveIndex(0);
     else setActiveIndex(index);
+    
+    // Restart autoplay after a delay (give user time to browse)
+    timeoutRef.current = setTimeout(() => {
+      startAutoplay();
+      timeoutRef.current = null;
+    }, autoplayDelay);
   };
 
   const current = images[activeIndex];
