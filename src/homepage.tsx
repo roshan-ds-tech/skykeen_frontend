@@ -630,7 +630,7 @@ const Homepage: React.FC = () => {
                     </h3>
                     <p className="text-white/60 text-sm mb-4">(Tick any you want to join)</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {['Academic Quiz', 'Science Innovators Challenge', 'Chess Tournament', 'Public Speaking Contest', 'Art & Creativity Challenge'].map((competition, index) => (
+                      {['Chess Tournament', 'Rubix', 'Creative Challenge'].map((competition, index) => (
                         <div key={index} className="flex items-center p-3 bg-[#221e10]/40 rounded-lg border border-[#685a31]/30 hover:border-primary/50 transition-colors">
                           <input className="h-5 w-5 rounded border border-[#685a31] bg-[#221e10]/80 text-primary focus:ring-primary cursor-pointer" id={`competition-${index}`} name="competitions" type="checkbox" value={competition} checked={formData.competitions.includes(competition)} onChange={handleInputChange}/>
                           <label className="ml-3 text-sm font-medium text-white/90 cursor-pointer" htmlFor={`competition-${index}`}>{competition}</label>
