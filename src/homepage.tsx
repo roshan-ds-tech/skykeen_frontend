@@ -393,7 +393,7 @@ const Homepage: React.FC = () => {
           </div>
           <div className="flex flex-wrap gap-4 justify-center mt-6">
             <button className="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 md:px-8 bg-primary text-background-dark text-base md:text-lg font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-all transform hover:scale-105 shadow-lg" onClick={(e) => { e.preventDefault(); document.getElementById('register')?.scrollIntoView({ behavior: 'smooth' }); }}>
-              <span className="truncate">Plan Your Event</span>
+              <span className="truncate">Register Now</span>
             </button>
             <button className="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 md:px-8 bg-white/20 dark:bg-[#493f22] text-white text-base md:text-lg font-bold leading-normal tracking-[0.015em] hover:bg-white/30 dark:hover:bg-[#5a4d2a] transition-all transform hover:scale-105 border border-white/20" onClick={(e) => { e.preventDefault(); document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' }); }}>
               <span className="truncate">Explore Our Work</span>
