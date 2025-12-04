@@ -188,13 +188,36 @@ const Homepage: React.FC = () => {
       }
 
       // Submit to API
-      const response = await fetch(`${API_BASE_URL}/api/registrations/`, {
-        method: 'POST',
-        body: formDataToSend,
-      });
+      console.log('Submitting to:', `${API_BASE_URL}/api/registrations/`);
+      console.log('Current origin:', window.location.origin);
+      console.log('API Base URL:', API_BASE_URL);
+      
+      let response;
+      try {
+        response = await fetch(`${API_BASE_URL}/api/registrations/`, {
+          method: 'POST',
+          mode: 'cors',
+          credentials: 'omit',
+          body: formDataToSend,
+        });
+      } catch (fetchError: any) {
+        console.error('Fetch error:', fetchError);
+        // Handle network errors
+        if (fetchError.message === 'Failed to fetch' || fetchError.name === 'TypeError') {
+          throw new Error('Unable to connect to the server. Please check your internet connection and ensure the API server is running. If the problem persists, the server may be experiencing issues.');
+        }
+        throw new Error(fetchError.message || 'Network error occurred. Please try again.');
+      }
 
       if (!response.ok) {
-        const errorData = await response.json();
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          // If response is not JSON, use status text
+          throw new Error(`Server error: ${response.status} ${response.statusText || 'Unknown error'}`);
+        }
+        
         console.error('Backend error response:', errorData);
         
         // Handle Django REST Framework validation errors
@@ -216,7 +239,7 @@ const Homepage: React.FC = () => {
           }
           throw new Error(errors.length > 0 ? errors.join('; ') : 'Registration failed. Please check all fields.');
         } else {
-          throw new Error('Registration failed. Please try again.');
+          throw new Error(`Registration failed (${response.status}). Please try again.`);
         }
       }
 
