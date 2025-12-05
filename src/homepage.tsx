@@ -772,7 +772,7 @@ const Homepage: React.FC = () => {
             <div>
               <h3 className="text-base font-bold text-white">Contact Us</h3>
               <ul className="mt-4 space-y-2">
-                <li className="text-sm text-[#cbbc90]">info.skykeen@gmail.com</li>
+                <li className="text-sm text-[#cbbc90]">skykeenevents@gmail.com</li>
                 <li className="text-sm text-[#cbbc90]">+91 74062 38503</li>
               </ul>
             </div>
