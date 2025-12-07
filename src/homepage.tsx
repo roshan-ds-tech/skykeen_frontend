@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ImageGallery } from '@/components/ui/carousel-circular-image-gallery';
 import { Menu, X } from 'lucide-react';
 
@@ -6,6 +6,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.skykeenen
 
 const Homepage: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -22,6 +23,7 @@ const Homepage: React.FC = () => {
     sibling2Class: '',
     parentName: '',
     parentContact: '',
+    parentOccupation: '',
     parentSignature: '',
     competitions: [] as string[],
     workshops: [] as string[],
@@ -35,6 +37,83 @@ const Homepage: React.FC = () => {
   const [parentSignaturePreview, setParentSignaturePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showRulesModal, setShowRulesModal] = useState(false);
+  const [selectedCompetition, setSelectedCompetition] = useState<string | null>(null);
+
+  // Competition rules
+  const competitionRules: { [key: string]: { title: string; emoji: string; rules: string[] } } = {
+    'Chess Tournament': {
+      title: 'CHESS TOURNAMENT — RULES',
+      emoji: '♟️',
+      rules: [
+        'Age Categories: Under 8 | Under 12 | Under 16',
+        'Tournament Duration: 1 hour',
+        'Format: 2 rounds (20 minutes each)',
+        'Scoring:',
+        '  • Win = 1 point',
+        '  • Draw = 0.5 point',
+        '  • Loss = 0 point',
+        'Top players = Final Blitz Playoff (if tie)',
+        'Chess timer used / volunteers monitoring timing',
+        'Touch-move rule applies',
+        'No external assistance / coaching allowed',
+        'Players must stay seated till match ends',
+        'Participation Certificate for all',
+        '🏆 Winner selection: Top 3 per age category'
+      ]
+    },
+    'Rubik\'s Cube Solving': {
+      title: 'RUBIK\'S CUBE CHAMPIONSHIP — RULES',
+      emoji: '🧩',
+      rules: [
+        'Age Categories: Under 8 | Under 12 | Under 16',
+        'Cube Type: 3×3 only',
+        'Duration: 1 hour total',
+        'Round 1: 2 attempts — best time counts',
+        'Top 20 into Final Round (1 attempt)',
+        'No outside help / apps / timing devices',
+        'Cube must be fully solved correctly',
+        'Drop allowed — time continues',
+        'If unsolved = DNF (Did Not Finish)',
+        'Participation Certificates for all',
+        '🏆 Winner selection: Fastest 3 per category'
+      ]
+    },
+    'Creative Challenge': {
+      title: 'CREATIVE INNOVATION CHALLENGE — RULES',
+      emoji: '🧠',
+      rules: [
+        '⚒️ Challenge: "Tallest & Strongest Tower"',
+        'Teams of 3 participants',
+        'Duration: 40 minutes build time + 20 min judging',
+        'Materials provided by organizers:',
+        '  • Popsicle sticks',
+        '  • Straws',
+        '  • Tape pieces',
+        '  • Base sheet',
+        'No extra materials allowed',
+        'Structure must stand independently',
+        'Judging Criteria:',
+        '  • Height – 40%',
+        '  • Strength Test (weight hold 5 sec) – 40%',
+        '  • Design Creativity – 20%',
+        'No adult/parent help allowed',
+        'Area should be cleaned after challenge',
+        'Team name + age category must be on base sheet',
+        'All participants receive certificates',
+        '🏆 Winner selection: Top 3 per age category'
+      ]
+    }
+  };
+
+  // Show popup on page load
+  useEffect(() => {
+    // Small delay to ensure page is loaded
+    const timer = setTimeout(() => {
+      setShowPopup(true);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
@@ -43,6 +122,56 @@ const Homepage: React.FC = () => {
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
     closeMobileMenu();
+  };
+
+  const handleBookStall = () => {
+    setShowPopup(false);
+    window.open('https://forms.gle/VuWGa1i9xA1kLErc9', '_blank');
+  };
+
+  const handleShowRules = (competition: string) => {
+    setSelectedCompetition(competition);
+    setShowRulesModal(true);
+  };
+
+  const handleCompetitionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value, checked } = e.target;
+    
+    // If checking a competition, ensure only one is selected
+    if (checked) {
+      // Uncheck all other competitions and set only this one
+      setFormData(prev => ({
+        ...prev,
+        competitions: [value] // Only the selected competition
+      }));
+      // Show the rules modal
+      handleShowRules(value);
+    } else {
+      // If unchecking, remove from competitions
+      setFormData(prev => ({
+        ...prev,
+        competitions: prev.competitions.filter(item => item !== value)
+      }));
+    }
+  };
+
+  const handleWorkshopChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value, checked } = e.target;
+    
+    // If checking a workshop, ensure only one is selected
+    if (checked) {
+      // Uncheck all other workshops and set only this one
+      setFormData(prev => ({
+        ...prev,
+        workshops: [value] // Only the selected workshop
+      }));
+    } else {
+      // If unchecking, remove from workshops
+      setFormData(prev => ({
+        ...prev,
+        workshops: prev.workshops.filter(item => item !== value)
+      }));
+    }
   };
 
   // Handle input changes
@@ -150,6 +279,7 @@ const Homepage: React.FC = () => {
       // Parent details
       formDataToSend.append('parent_name', formData.parentName);
       formDataToSend.append('parent_contact', formData.parentContact);
+      formDataToSend.append('parent_occupation', formData.parentOccupation);
       if (parentSignatureFile) {
         formDataToSend.append('parent_signature', parentSignatureFile);
       } else if (formData.parentSignature) {
@@ -269,6 +399,7 @@ const Homepage: React.FC = () => {
         sibling2Class: '',
         parentName: '',
         parentContact: '',
+        parentOccupation: '',
         parentSignature: '',
         competitions: [],
         workshops: [],
@@ -302,6 +433,107 @@ const Homepage: React.FC = () => {
 
   return (
     <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
+      {/* Popup Modal */}
+      {showPopup && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div className="relative bg-gradient-to-br from-[#342d18] to-[#221e10] border-2 border-primary rounded-2xl shadow-2xl max-w-md w-full mx-4 p-8 animate-slideUp">
+            {/* Close Button */}
+            <button
+              onClick={() => setShowPopup(false)}
+              className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors"
+              aria-label="Close popup"
+            >
+              <X className="h-6 w-6" />
+            </button>
+
+            {/* Urgency Badge */}
+            <div className="flex justify-center mb-4">
+              <div className="bg-red-500/20 border border-red-500/50 rounded-full px-4 py-2 animate-pulse">
+                <p className="text-red-400 text-sm font-bold flex items-center gap-2">
+                  <span className="material-symbols-outlined text-lg">warning</span>
+                  Limited Seats Available!
+                </p>
+              </div>
+            </div>
+
+            {/* Main Content */}
+            <div className="text-center mb-6">
+              <h2 className="text-white text-3xl font-bold mb-3">Don't Miss Out!</h2>
+              <p className="text-[#cbbc90] text-lg mb-2">Only <span className="text-primary font-bold text-xl">12 seats</span> remaining</p>
+              <p className="text-white/80 text-sm mb-4">Hurry! Registration closes in <span className="text-primary font-semibold">3 days</span></p>
+              <p className="text-[#cbbc90] text-base">Secure your spot at the EDUNEXT EXPO now!</p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleBookStall}
+                className="w-full flex items-center justify-center gap-2 py-4 px-6 bg-primary text-background-dark text-lg font-bold rounded-lg hover:bg-primary/90 transition-all transform hover:scale-105 shadow-lg"
+              >
+                <span className="material-symbols-outlined">event_available</span>
+                Book a Stall
+              </button>
+              <button
+                onClick={() => setShowPopup(false)}
+                className="w-full py-3 px-6 bg-white/10 text-white text-base font-medium rounded-lg hover:bg-white/20 transition-colors"
+              >
+                Maybe Later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Competition Rules Modal */}
+      {showRulesModal && selectedCompetition && competitionRules[selectedCompetition] && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div className="relative bg-gradient-to-br from-[#342d18] to-[#221e10] border-2 border-primary rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto animate-slideUp">
+            {/* Close Button */}
+            <button
+              onClick={() => setShowRulesModal(false)}
+              className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors z-10"
+              aria-label="Close rules"
+            >
+              <X className="h-6 w-6" />
+            </button>
+
+            {/* Modal Content */}
+            <div className="p-8">
+              <div className="text-center mb-6">
+                <h2 className="text-white text-3xl font-bold mb-2 flex items-center justify-center gap-2">
+                  <span>{competitionRules[selectedCompetition].emoji}</span>
+                  <span>{competitionRules[selectedCompetition].title}</span>
+                </h2>
+              </div>
+
+              <div className="space-y-3">
+                {competitionRules[selectedCompetition].rules.map((rule, index) => (
+                  <div key={index} className="text-white/90 text-sm md:text-base leading-relaxed">
+                    {rule.startsWith('  •') ? (
+                      <div className="ml-4 text-white/80">{rule}</div>
+                    ) : rule.startsWith('🏆') || rule.startsWith('⚒️') ? (
+                      <div className="font-bold text-primary mt-2">{rule}</div>
+                    ) : (
+                      <div>{rule}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Close Button at Bottom */}
+              <div className="mt-8 flex justify-center">
+                <button
+                  onClick={() => setShowRulesModal(false)}
+                  className="px-6 py-3 bg-primary text-background-dark text-base font-bold rounded-lg hover:bg-primary/90 transition-all transform hover:scale-105"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Full-width header */}
       <header className="w-full flex items-center justify-between whitespace-nowrap border-b border-solid border-white/20 dark:border-b-[#493f22] px-4 md:px-8 lg:px-16 xl:px-24 py-4 sticky top-0 bg-background-dark/80 backdrop-blur-sm z-50">
         <div className="w-full max-w-7xl mx-auto flex items-center justify-between">
@@ -322,7 +554,7 @@ const Homepage: React.FC = () => {
               <a className="text-white text-sm font-medium leading-normal hover:text-primary transition-colors cursor-pointer" href="#gallery" onClick={(e) => { e.preventDefault(); document.getElementById('gallery')?.scrollIntoView({ behavior: 'smooth' }); }}>Gallery</a>
             </div>
             <button className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-background-dark text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors" onClick={(e) => { e.preventDefault(); document.getElementById('register')?.scrollIntoView({ behavior: 'smooth' }); }}>
-              <span className="truncate">Book Your Event</span>
+              <span className="truncate">Register for the Expo</span>
             </button>
           </div>
 
@@ -372,7 +604,7 @@ const Homepage: React.FC = () => {
                 className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-background-dark text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors mt-2"
                 onClick={(e) => { e.preventDefault(); scrollToSection('register'); }}
               >
-                Book Your Event
+                Register for the Expo
               </button>
             </div>
           </div>
@@ -392,11 +624,11 @@ const Homepage: React.FC = () => {
             <h2 className="text-white/90 text-base md:text-lg font-normal leading-normal max-w-2xl mx-auto">An elegant and luxurious event organizing service dedicated to creating unforgettable moments.</h2>
           </div>
           <div className="flex flex-wrap gap-4 justify-center mt-6">
-            <button className="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 md:px-8 bg-primary text-background-dark text-base md:text-lg font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-all transform hover:scale-105 shadow-lg" onClick={(e) => { e.preventDefault(); document.getElementById('register')?.scrollIntoView({ behavior: 'smooth' }); }}>
-              <span className="truncate">Register Now</span>
+            <button className="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 md:px-8 bg-primary text-background-dark text-base md:text-lg font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-all transform hover:scale-105 shadow-lg" onClick={(e) => { e.preventDefault(); window.open('https://forms.gle/VuWGa1i9xA1kLErc9', '_blank'); }}>
+              <span className="truncate">Book a Stall</span>
             </button>
-            <button className="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 md:px-8 bg-white/20 dark:bg-[#493f22] text-white text-base md:text-lg font-bold leading-normal tracking-[0.015em] hover:bg-white/30 dark:hover:bg-[#5a4d2a] transition-all transform hover:scale-105 border border-white/20" onClick={(e) => { e.preventDefault(); document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' }); }}>
-              <span className="truncate">Explore Our Work</span>
+            <button className="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 md:px-8 bg-white/20 dark:bg-[#493f22] text-white text-base md:text-lg font-bold leading-normal tracking-[0.015em] hover:bg-white/30 dark:hover:bg-[#5a4d2a] transition-all transform hover:scale-105 border border-white/20" onClick={(e) => { e.preventDefault(); document.getElementById('register')?.scrollIntoView({ behavior: 'smooth' }); }}>
+              <span className="truncate">Register Now</span>
             </button>
           </div>
         </div>
@@ -504,7 +736,6 @@ const Homepage: React.FC = () => {
                   <div>
                     <p className="text-primary text-sm font-semibold mb-1">Registration Fee</p>
                     <p className="text-white text-lg font-bold">₹500 per student</p>
-                    <p className="text-white/70 text-xs mt-1">(food not included)</p>
                   </div>
                 </div>
               </div>
@@ -618,6 +849,10 @@ const Homepage: React.FC = () => {
                         <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="parent-contact">Contact Number <span className="text-primary">*</span></label>
                         <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="parent-contact" name="parentContact" type="tel" placeholder="Enter contact number" value={formData.parentContact} onChange={handleInputChange} required/>
                       </div>
+                      <div>
+                        <label className="block text-sm font-medium text-white/80 mb-2" htmlFor="parent-occupation">Occupation <span className="text-primary">*</span></label>
+                        <input className="block w-full bg-[#221e10]/80 border border-[#685a31] rounded-md shadow-sm py-2.5 px-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="parent-occupation" name="parentOccupation" type="text" placeholder="Enter occupation" value={formData.parentOccupation} onChange={handleInputChange} required/>
+                      </div>
                       
                     </div>
                   </div>
@@ -628,12 +863,38 @@ const Homepage: React.FC = () => {
                       <span className="material-symbols-outlined text-2xl">emoji_events</span>
                       Competitions
                     </h3>
-                    <p className="text-white/60 text-sm mb-4">(Tick any you want to join)</p>
+                    <p className="text-white/60 text-sm mb-4">(Select only one competition to participate)</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {['Chess Tournament', 'Rubix', 'Creative Challenge'].map((competition, index) => (
-                        <div key={index} className="flex items-center p-3 bg-[#221e10]/40 rounded-lg border border-[#685a31]/30 hover:border-primary/50 transition-colors">
-                          <input className="h-5 w-5 rounded border border-[#685a31] bg-[#221e10]/80 text-primary focus:ring-primary cursor-pointer" id={`competition-${index}`} name="competitions" type="checkbox" value={competition} checked={formData.competitions.includes(competition)} onChange={handleInputChange}/>
-                          <label className="ml-3 text-sm font-medium text-white/90 cursor-pointer" htmlFor={`competition-${index}`}>{competition}</label>
+                      {['Chess Tournament', 'Rubik\'s Cube Solving', 'Creative Challenge'].map((competition, index) => (
+                        <div 
+                          key={index} 
+                          className="flex items-center justify-between p-3 bg-[#221e10]/40 rounded-lg border border-[#685a31]/30 hover:border-primary/50 transition-colors"
+                        >
+                          <div className="flex items-center flex-1">
+                            <input 
+                              className="h-5 w-5 rounded border border-[#685a31] bg-[#221e10]/80 text-primary focus:ring-primary cursor-pointer" 
+                              id={`competition-${index}`} 
+                              name="competitions" 
+                              type="checkbox" 
+                              value={competition} 
+                              checked={formData.competitions.includes(competition)} 
+                              onChange={handleCompetitionChange}
+                            />
+                            <label 
+                              className="ml-3 text-sm font-medium text-white/90 cursor-pointer" 
+                              htmlFor={`competition-${index}`}
+                            >
+                              {competition}
+                            </label>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleShowRules(competition)}
+                            className="ml-2 p-1.5 text-primary hover:text-primary/80 hover:bg-primary/10 rounded transition-colors"
+                            title="View Rules"
+                          >
+                            <span className="material-symbols-outlined text-lg">info</span>
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -645,11 +906,11 @@ const Homepage: React.FC = () => {
                       <span className="material-symbols-outlined text-2xl">workspace_premium</span>
                       Workshops
                     </h3>
-                    <p className="text-white/60 text-sm mb-4">(Tick preferred workshops)</p>
+                    <p className="text-white/60 text-sm mb-4">(Select only one workshop to attend)</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {['Artificial Intelligence for Beginners', 'Financial Literacy & Money Management', 'Entrepreneurship Foundation', 'Business Development & Leadership'].map((workshop, index) => (
                         <div key={index} className="flex items-center p-3 bg-[#221e10]/40 rounded-lg border border-[#685a31]/30 hover:border-primary/50 transition-colors">
-                          <input className="h-5 w-5 rounded border border-[#685a31] bg-[#221e10]/80 text-primary focus:ring-primary cursor-pointer" id={`workshop-${index}`} name="workshops" type="checkbox" value={workshop} checked={formData.workshops.includes(workshop)} onChange={handleInputChange}/>
+                          <input className="h-5 w-5 rounded border border-[#685a31] bg-[#221e10]/80 text-primary focus:ring-primary cursor-pointer" id={`workshop-${index}`} name="workshops" type="checkbox" value={workshop} checked={formData.workshops.includes(workshop)} onChange={handleWorkshopChange}/>
                           <label className="ml-3 text-sm font-medium text-white/90 cursor-pointer" htmlFor={`workshop-${index}`}>{workshop}</label>
                         </div>
                       ))}
@@ -717,7 +978,37 @@ const Homepage: React.FC = () => {
                     </div>
                   </div>
 
-                
+                  {/* Common Rules Section */}
+                  <div className="border-b border-[#685a31]/50 pb-6">
+                    <div className="bg-gradient-to-br from-primary/20 to-primary/10 border-2 border-primary/30 rounded-xl p-6 shadow-lg">
+                      <h3 className="text-primary text-xl font-bold mb-4 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-2xl">rule</span>
+                        Common Rules for All Competitions
+                      </h3>
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3 text-white/90">
+                          <span className="text-primary text-lg font-bold mt-0.5">✔</span>
+                          <p className="text-sm md:text-base">Report 30 minutes before your event</p>
+                        </div>
+                        <div className="flex items-start gap-3 text-white/90">
+                          <span className="text-primary text-lg font-bold mt-0.5">✔</span>
+                          <p className="text-sm md:text-base">Carry Registration Proof / QR</p>
+                        </div>
+                        <div className="flex items-start gap-3 text-white/90">
+                          <span className="text-primary text-lg font-bold mt-0.5">✔</span>
+                          <p className="text-sm md:text-base">Parents allowed in designated viewing areas</p>
+                        </div>
+                        <div className="flex items-start gap-3 text-white/90">
+                          <span className="text-primary text-lg font-bold mt-0.5">✔</span>
+                          <p className="text-sm md:text-base">Misconduct = immediate disqualification</p>
+                        </div>
+                        <div className="flex items-start gap-3 text-white/90">
+                          <span className="text-primary text-lg font-bold mt-0.5">✔</span>
+                          <p className="text-sm md:text-base">Judge decisions are final</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Submit Button */}
                   <div className="pt-4">
