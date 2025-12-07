@@ -41,8 +41,8 @@ const images: ImageData[] = [
 
 export function ImageGallery() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoplayDelay = 5000; // 5 seconds
 
   // Function to start autoplay
